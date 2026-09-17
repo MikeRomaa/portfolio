@@ -1,0 +1,639 @@
+@font-face {
+	font-family: "Berkeley Mono";
+	src: url("/fonts/BerkeleyMonoVariable-Regular.woff2") format("woff2");
+	font-weight: 100 900;
+	font-display: swap;
+}
+
+@keyframes crtflick {
+	0%,
+	100% {
+		opacity: 0.985;
+	}
+	47% {
+		opacity: 1;
+	}
+	52% {
+		opacity: 0.965;
+	}
+}
+@keyframes crtroll {
+	0% {
+		top: -120px;
+	}
+	100% {
+		top: 100%;
+	}
+}
+@keyframes blink {
+	0%,
+	49% {
+		opacity: 1;
+	}
+	50%,
+	100% {
+		opacity: 0;
+	}
+}
+
+.term-page {
+	min-height: 100svh;
+	width: 100%;
+	background: #08080a;
+}
+
+.term-screen {
+	position: relative;
+	min-height: 100svh;
+	width: 100%;
+	overflow: hidden;
+	background: radial-gradient(
+		130% 110% at 50% 38%,
+		#15150f 0%,
+		#08080a 62%,
+		#040405 100%
+	);
+	animation: crtflick 5.5s steps(1, end) infinite;
+	display: flex;
+	flex-direction: column;
+	font-family:
+		"Berkeley Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 14px;
+	line-height: 1.55;
+	color: #e9e7e0;
+	text-shadow: 0 0 8px rgba(233, 231, 224, 0.4);
+}
+
+/* Stacking (low -> high): base content (0) < scanlines (2) < rollband (3) <
+   a hovered gallery cell, popped through the raster texture so the revealed
+   photo reads clean (5) < the sticky gallery header (8, always above a
+   hovered cell so it occludes the grid scrolling underneath it — it carries
+   its own local scanline texture rather than relying on the global layer,
+   since it now sits above that too) < the frame viewer window (9, same
+   local-texture trick — see .term-viewer) < vignette (10), which sits above
+   literally everything, photos included, since edge-darkening is a property
+   of the tube, not the raster. */
+.term-scanlines {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+	background: repeating-linear-gradient(
+		rgba(0, 0, 0, 0) 0 2px,
+		rgba(0, 0, 0, 0.38) 2px 3.4px
+	);
+}
+.term-rollband {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -120px;
+	height: 120px;
+	z-index: 3;
+	pointer-events: none;
+	background: linear-gradient(
+		rgba(255, 255, 255, 0),
+		rgba(255, 255, 255, 0.028),
+		rgba(255, 255, 255, 0)
+	);
+	animation: crtroll 7s linear infinite;
+}
+.term-vignette {
+	position: absolute;
+	inset: 0;
+	z-index: 10;
+	pointer-events: none;
+	background: radial-gradient(
+		100% 100% at 50% 50%,
+		rgba(0, 0, 0, 0) 58%,
+		rgba(0, 0, 0, 0.5) 100%
+	);
+}
+
+.term-body {
+	position: absolute;
+	inset: 0;
+	padding: 26px 0 88px;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	min-height: 0;
+}
+
+.term-scroll {
+	max-height: 100%;
+	overflow-y: auto;
+	width: 100%;
+	max-width: 880px;
+	margin: 0 auto;
+	padding: 0 30px;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	scrollbar-width: none;
+}
+.term-scroll::-webkit-scrollbar {
+	display: none;
+}
+
+.term-line {
+	white-space: pre-wrap;
+}
+.term-line[data-link] {
+	display: block;
+	width: 100%;
+	background: none;
+	border: 0;
+	margin: 0;
+	padding: 0;
+	font: inherit;
+	text-align: left;
+	text-shadow: inherit;
+	cursor: pointer;
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+	color: #fff;
+}
+.term-dim {
+	color: #6f6d66;
+}
+.term-boot-banner {
+	display: flex;
+	/* flex-start, not center: the art block's height grows as each line
+     types in, and centering would re-anchor its midpoint on every line,
+     making it grow outward from the middle instead of straight down from
+     a fixed top — which is what keeps it in sync with the portrait's own
+     top-down reveal. */
+	align-items: flex-start;
+	gap: 24px;
+}
+.term-boot-banner-art {
+	margin: 0;
+	font: inherit;
+	color: #6f6d66;
+	text-shadow: inherit;
+	white-space: pre;
+}
+.term-cell.term-portrait {
+	flex: none;
+	/* BOOT_BANNER is 15 lines at the screen's 1.55 line-height, so this
+     matches the banner's own height exactly, in the same font-size unit. */
+	height: 23.25em;
+	width: auto;
+	cursor: default;
+	/* No transition: clip-path (set inline) jumps one line-step at a time in
+     sync with the banner text, so it should snap, not smoothly animate. */
+}
+.term-hi {
+	color: #ffffff;
+}
+.term-med {
+	color: #8b8982;
+}
+.term-link {
+	display: inline;
+	background: none;
+	border: 0;
+	margin: 0;
+	padding: 0;
+	font: inherit;
+	text-shadow: inherit;
+	color: #e9e7e0;
+	cursor: pointer;
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+
+.term-prompt-row {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100%;
+	max-width: 880px;
+	bottom: 26px;
+	padding: 0 30px;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	gap: 0;
+	margin: 0;
+}
+.term-prompt-label {
+	white-space: pre;
+}
+.term-input {
+	flex: 0 0 auto;
+	background: transparent;
+	border: 0;
+	outline: 0;
+	color: #fff;
+	font: inherit;
+	text-shadow: inherit;
+	caret-color: transparent;
+	padding: 0;
+	margin-left: 8px;
+}
+.term-caret {
+	display: inline-block;
+	width: 8px;
+	height: 15px;
+	background: #fff;
+	box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+	animation: blink 1.05s steps(1, end) infinite;
+	margin-left: -2px;
+	vertical-align: -2px;
+}
+
+.term-hint {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100%;
+	max-width: 880px;
+	bottom: 56px;
+	padding: 10px 30px 0;
+	box-sizing: border-box;
+	border-top: 1px solid rgba(233, 231, 224, 0.14);
+	color: #6f6d66;
+	font-size: 12px;
+}
+
+/* Trip listing */
+.term-trips {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 12.5px;
+	padding-bottom: 6px;
+	margin-top: 8px;
+}
+.term-trip-header {
+	display: grid;
+	grid-template-columns: 96px 62px 82px 1fr;
+	gap: 0 16px;
+	color: #6f6d66;
+	font-size: 11.5px;
+	border-bottom: 1px solid rgba(233, 231, 224, 0.16);
+	padding-bottom: 4px;
+}
+.term-trip-row {
+	display: grid;
+	grid-template-columns: 96px 62px 82px 1fr;
+	gap: 0 16px;
+	padding: 1px 6px;
+	margin: 0 -6px;
+	min-height: 44px;
+	align-items: center;
+}
+.term-trip-row--link {
+	width: 100%;
+	background: none;
+	border: 0;
+	font: inherit;
+	text-align: left;
+	color: inherit;
+	cursor: pointer;
+}
+.term-trip-row--link:hover {
+	background: rgba(233, 231, 224, 0.14);
+}
+.term-trip-row--link .term-trip-name {
+	color: #fff;
+}
+.term-trip-sub {
+	color: #6f6d66;
+	font-size: 11.5px;
+}
+.term-trips-footer {
+	color: #6f6d66;
+	padding-top: 8px;
+}
+.term-trips-count {
+	color: #6f6d66;
+	border-bottom: 1px solid rgba(233, 231, 224, 0.16);
+	padding-bottom: 4px;
+	font-size: 11.5px;
+}
+
+/* Gallery */
+.term-gallery-wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	font-size: 12.5px;
+	padding-bottom: 6px;
+	margin-top: 8px;
+}
+.term-gallery-header {
+	position: sticky;
+	top: 0;
+	/* Above a hovered gallery cell (5) so it always occludes cells scrolling
+     underneath it. It carries its own local scanline texture (rather than
+     relying on the global overlay, which sits below it) so it still reads
+     as "on the screen" like everything else. */
+	z-index: 8;
+	margin: 0 -30px;
+	padding: 0 30px 6px;
+	background:
+		repeating-linear-gradient(
+			rgba(0, 0, 0, 0) 0 2px,
+			rgba(0, 0, 0, 0.38) 2px 3.4px
+		),
+		#09090b;
+	border-bottom: 1px solid rgba(233, 231, 224, 0.16);
+}
+.term-gallery {
+	column-count: 3;
+	column-gap: 10px;
+}
+.term-cell {
+	display: block;
+	width: 100%;
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	text-align: left;
+	position: relative;
+	break-inside: avoid;
+	margin-bottom: 10px;
+	cursor: pointer;
+	box-shadow: inset 0 0 0 1px rgba(233, 231, 224, 0.25);
+}
+.term-cell--wide {
+	column-span: none;
+}
+.term-cell:hover {
+	z-index: 5;
+}
+.term-cell-photo {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+.term-portrait .term-cell-photo {
+	width: auto;
+	height: 100%;
+	display: block;
+}
+.term-cell-dither {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	image-rendering: pixelated;
+	transition: opacity 0.25s;
+}
+.term-cell:hover .term-cell-dither {
+	opacity: 0;
+}
+.term-hover-meta {
+	color: #6f6d66;
+	display: flex;
+	gap: 12px;
+	font-size: 11.5px;
+	min-height: 1.4em;
+	flex: none;
+}
+.term-hover-meta span {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.term-hover-meta span:last-child {
+	flex: 1;
+	min-width: 0;
+}
+
+/* Frame viewer — a floating window over the terminal (still visible behind it) on
+   desktop; goes edge-to-edge on mobile where there's no room to float it.
+
+   This window sits above the global scanline overlay (see the stacking note
+   above), so the raster texture can't reach in from outside — instead the
+   window carries its own copy of the same scanline pattern as a background
+   layer. The <img> paints over that background in normal document order, so
+   the photo itself stays clean while the surrounding chrome still reads as
+   "on the same screen". */
+.term-viewer {
+	position: absolute;
+	inset: 64px;
+	max-width: 820px;
+	max-height: 640px;
+	margin: auto;
+	z-index: 9;
+	background:
+		repeating-linear-gradient(
+			rgba(0, 0, 0, 0) 0 2px,
+			rgba(0, 0, 0, 0.38) 2px 3.4px
+		),
+		radial-gradient(130% 110% at 50% 38%, #15150f 0%, #08080a 62%, #040405 100%);
+	border: 1px solid rgba(233, 231, 224, 0.35);
+	border-radius: 3px;
+	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.85);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	font-size: 12.5px;
+	color: #e9e7e0;
+}
+.term-viewer-bar {
+	background:
+		repeating-linear-gradient(
+			rgba(0, 0, 0, 0) 0 2px,
+			rgba(0, 0, 0, 0.16) 2px 3.4px
+		),
+		#e9e7e0;
+	color: #07070a;
+	text-shadow: none;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 6px 12px;
+	font-size: 11.5px;
+}
+.term-viewer-name {
+	font-weight: 600;
+}
+.term-viewer-place {
+	opacity: 0.7;
+}
+.term-viewer-close {
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	text-shadow: inherit;
+	color: inherit;
+	margin-left: auto;
+	cursor: pointer;
+	min-height: 32px;
+	display: flex;
+	align-items: center;
+	font-weight: 600;
+}
+.term-doc-newtab {
+	margin-left: auto;
+	color: #07070a;
+	cursor: pointer;
+	min-height: 32px;
+	display: flex;
+	align-items: center;
+	text-decoration: underline dotted;
+	text-underline-offset: 3px;
+}
+.term-doc-frame {
+	flex: 1;
+	min-height: 0;
+	width: 100%;
+	border: 0;
+	background: #525659;
+}
+.term-viewer-image {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 10px;
+}
+.term-viewer-image img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+}
+.term-viewer-footer {
+	display: flex;
+	gap: 10px;
+	padding: 6px 12px;
+	color: #6f6d66;
+	font-size: 11px;
+	border-top: 1px solid rgba(233, 231, 224, 0.2);
+}
+.term-viewer-idx {
+	margin-left: auto;
+}
+.term-viewer-nav {
+	display: flex;
+	border-top: 1px solid rgba(233, 231, 224, 0.2);
+}
+.term-viewer-nav button {
+	flex: 1;
+	min-height: 48px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	background: none;
+	border: 0;
+	font: inherit;
+	color: inherit;
+	text-shadow: inherit;
+}
+.term-viewer-nav button:first-child {
+	border-right: 1px solid rgba(233, 231, 224, 0.2);
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+	.term-screen {
+		font-size: 13px;
+		line-height: 1.5;
+		text-shadow: 0 0 7px rgba(233, 231, 224, 0.34);
+	}
+	.term-body {
+		padding: max(16px, env(safe-area-inset-top)) 0 110px;
+	}
+	.term-scroll {
+		padding: 0 16px;
+	}
+	.term-prompt-row,
+	.term-hint {
+		display: none;
+	}
+	.term-gallery {
+		column-count: 1;
+	}
+	.term-boot-banner {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 12px;
+	}
+	.term-boot-banner-art {
+		font-size: 8px;
+		line-height: 1.2;
+	}
+	.term-cell.term-portrait {
+		/* Banner block height at its shrunk 8px/1.2 mobile size (15 lines). */
+		height: 144px;
+	}
+	.term-cmdbar-wrap {
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 15;
+		border-top: 1px solid rgba(233, 231, 224, 0.16);
+		padding: 8px 16px max(16px, env(safe-area-inset-bottom));
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		background: rgba(6, 6, 8, 0.7);
+		box-sizing: border-box;
+	}
+	.term-prompt-static {
+		display: flex;
+		align-items: center;
+	}
+	.term-cmdbar {
+		display: flex;
+		gap: 8px;
+		overflow-x: auto;
+		font-size: 12px;
+	}
+	.term-pill {
+		background: none;
+		font: inherit;
+		cursor: pointer;
+		flex: none;
+		min-height: 36px;
+		display: flex;
+		align-items: center;
+		padding: 0 12px;
+		border: 1px solid rgba(233, 231, 224, 0.35);
+		color: #e9e7e0;
+	}
+	.term-pill--active {
+		background: #e9e7e0;
+		color: #07070a;
+		text-shadow: none;
+	}
+	.term-trip-header {
+		display: none;
+	}
+	.term-trip-row {
+		grid-template-columns: 1fr;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 1px;
+		border-bottom: 1px solid rgba(233, 231, 224, 0.1);
+	}
+	.term-cell-dither {
+		opacity: 0;
+	}
+	.term-cell:hover .term-cell-dither {
+		opacity: 1;
+	}
+	.term-viewer-nav button {
+		min-height: 56px;
+	}
+	.term-viewer {
+		inset: 0;
+		max-width: none;
+		max-height: none;
+		margin: 0;
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+	}
+}
